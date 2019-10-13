@@ -1,0 +1,11 @@
+@startuml
+Device -> Webauth : HTTP POST "service", "unix_account_id"
+activate Webauth
+Webauth -> Webauth : Get "CommonName" in client certificate which is "host_id"
+Webauth -> Webauth : Check Host and Unix account exist in database
+Webauth -> Webauth : User web session exist
+Webauth -> Webbrowser : authorization request
+Webauth <-- Webbrowser : AUTHORIZED | UNAUTHORIZED
+Device <-- Webauth : 200 OK | 401 UNAUTHORIZED
+deactivate Webauth
+@enduml

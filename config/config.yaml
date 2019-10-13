@@ -1,0 +1,50 @@
+application:
+
+  storage:
+    location_dir: "/mnt/webauth/db"
+    hosts_filename: "hosts.json"
+    unix_accounts_filename: "unix_accounts.json"
+    user_accounts_filename: "user_accounts.json"
+
+  openid_provider:
+    - name: "keycloak"
+      well_known: "http://localhost:8080/auth/realms/unix/.well-known/openid-configuration"
+      client_id: "<PLACEHOLDER>"
+      client_secret: "<PLACEHOLDER>"
+    - name: "google"
+      well_known: "https://accounts.google.com/.well-known/openid-configuration"
+      client_id: "<PLACEHOLDER>.apps.googleusercontent.com"
+      client_secret: "<PLACEHOLDER>"
+
+  webserver:
+    external_url: "http://<PLACEHOLDER>:8099"
+    cookie_secret: "<PLACEHOLDER>"
+    service:
+      - name: "backchannel"
+        port: 8443
+        host: "0.0.0.0"
+        ssl:
+          location_dir: "/mnt/webauth/certs"
+          cert: "server.cert.pem"
+          key: "server.key.pem"
+          ca_cert: "ca-chain.cert.pem"
+      - name: "frontend"
+        port: 8099
+        host: "0.0.0.0"
+
+
+  # These objects will be if they don't exist, when using "--bootstrap" cmdline flag.
+  bootstrap:
+    - type: "user"
+      name: "Administrator"
+      privilege: "ADMINISTRATOR"
+    - type: "user"
+      name: "curl-cli"
+      privilege: "ADMINISTRATOR"
+    - type: "host"
+      name: "example.com"
+      id: "1234-5678"
+    - type: "unix_account"
+      name: "unix-user"
+      id: 1000
+      associated_user: "Administrator"

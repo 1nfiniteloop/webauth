@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Auth requests</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.0/jquery.min.js" type="text/javascript"></script>
+    <script type="text/javascript">
+    {% include "auth-requests.js" %}
+    </script>
+    <style>
+        #status {
+            font-weight: bold;
+            color: #d40d2f;
+        }
+
+        #status.connected {
+            color: #2eaf07;
+        }
+
+        .message.approved {
+            background: #2eaf07;
+        }
+
+        .message.rejected {
+            background: #d40d2f;
+        }
+
+        .message.expired {
+            background: #ffc107;
+        }
+    </style>
+</head>
+<body>
+
+<p>Status: <span id="status"></span></p>
+
+Current messages:
+
+<div id="messages"></div>
+
+</body>
+</html>

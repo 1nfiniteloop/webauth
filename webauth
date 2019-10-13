@@ -1,0 +1,293 @@
+#!/usr/bin/env python3
+
+import logging
+from typing import List
+import os.path
+
+import tornado.web
+import tornado.routing
+import tornado.httputil
+import tornado.ioloop
+from tornado.options import (
+    define,
+    options
+)
+
+from application import User
+from application.messaging import (
+    MessageBus
+)
+from application.storage import (
+    Storage,
+    UserAccountActivationStorage
+)
+from config import (
+    Configuration,
+)
+from messaging import (
+    InMemoryMessageBus
+)
+from unix_account_authorization import WebsocketMessageProtocol
+from openid_connect import (
+    GoogleOpenIDEndpointsBuilder,
+    GoogleTokenFromCodeExchangeBuilder,
+    KeycloakOpenIDEndpointsBuilder,
+    KeycloakTokenFromCodeExchangeBuilder,
+)
+from http_client import (
+    TornadoAsyncHttpClient,
+)
+
+from user_account_activation import (
+    UserAccountActivationLinkBuilder,
+    UserAccountActivationWithLink
+)
+from bootstrap_storage import (
+    bootstrap_storage,
+)
+import webserver
+
+log = logging.getLogger(__name__)
+
+
+define("config", default="config.yaml", help="Path to configuration file", type=str)
+define("bootstrap", default=False, help="Run the bootstrapping configuration", type=bool)
+
+
+def bootstrap_user_accounts(users: List[User], link_builder: UserAccountActivationLinkBuilder, user_account_activation: UserAccountActivationStorage):
+    for user in users:
+        nonce = user_account_activation.put_user(user)
+        link = link_builder.get_link_from_nonce(nonce)
+        log.info("New user: '{name}' can be registred @ {link}".format(
+            name=user.name,
+            link=link
+        ))
+
+
+def url_concat(base_url: str, args: dict):
+    url = tornado.httputil.url_concat(
+        base_url,
+        args
+    )
+    return url
+
+
+class Routes:
+    FRONTEND_MAIN = "/"
+    FRONTEND_LOGIN = "/login"
+    FRONTEND_LOGOUT = "/logout"      # NOTE: this is hardcoded in the mockup frontend!
+    FRONTEND_AUTH_REQUESTS = "/unix_accounts/auth_requests"    # NOTE: this is hardcoded in the mockup frontend!
+    OPENID_LOGIN_FMT = "/login/{provider}"
+    OPENID_LOGOUT_FMT = "/logout/{provider}"
+    OPENID_REGISTER_FMT = "/register/{provider}"
+    USER_REGISTRATION = "/user_account/bootstrap"
+    ADMIN_HOSTS = "/api/admin/hosts"
+    ADMIN_USER_ACCOUNTS = "/api/admin/user_accounts"
+    ADMIN_UNIX_ACCOUNTS = "/api/admin/unix_accounts"
+    UNIX_ACCOUNT_AUTH_WS = "/auth/websocket"    # NOTE: this is hard-coded in the mockup frontend!
+    UNIX_ACCOUNT_AUTH_BACKCHANNEL = "/api/unix_account/authorize"
+
+
+class Application:
+
+    def __init__(self, storage: Storage, config: Configuration, msg_bus: MessageBus):
+        self._storage = storage
+        self._config = config
+        self._msg_bus = msg_bus
+
+    def bootstrap(self):
+        users_added = bootstrap_storage(self._storage, self._config.bootstrap)
+        bootstrap_user_accounts(
+            users_added,
+            self.get_default_user_registration_link_builder(),
+            self._storage.user_account_activations
+        )
+
+    def run(self):
+        self.run_frontend()
+        self.run_back_channel()
+
+    def run_frontend(self):
+        routes = list()
+        openid_providers_list = list()
+        if self._config.openid_provider.has("google"):
+            routes.extend(self.create_routes_for_openid_google("google"))
+            openid_providers_list.append("google")
+        if self._config.openid_provider.has("keycloak"):
+            routes.extend(self.create_routes_for_openid_keycloak("keycloak"))
+            openid_providers_list.append("keycloak")
+        user_registration_link_builder = self.get_default_user_registration_link_builder()
+        routes.extend([
+            *self.create_routes_for_frontend(openid_providers_list),
+            *self.create_routes_for_administration(user_registration_link_builder),
+            self.create_route_for_user_registration(),
+            self.create_route_for_unix_account_authorization_ws(),
+        ])
+        self.create_service_for_frontend(routes)
+
+    def get_default_user_registration_link_builder(self) -> UserAccountActivationLinkBuilder:
+        user_registration_link = self._create_user_registration_link_template(
+            Routes.OPENID_REGISTER_FMT.format(provider="google")
+        )
+        return UserAccountActivationLinkBuilder(user_registration_link)
+
+    def _create_user_registration_link_template(self, user_registration_url_path) -> str:
+        url = webserver.utils.url_path_join(Routes.USER_REGISTRATION, "/{nonce}", base_url=self._config.webserver.external_url)
+        return url_concat(url, {"next": user_registration_url_path})
+
+    def create_service_for_frontend(self, routes: List[tornado.routing.Rule]):
+        service_name = "frontend"
+        config = self._config.webserver.service(service_name)
+        settings = dict(
+            cookie_secret=self._config.webserver.cookie_secret,
+            xsrf_cookies=True,
+            template_path=os.path.join(os.path.dirname(__file__), "templates"),
+            login_url=Routes.FRONTEND_LOGIN
+        )
+        server = tornado.web.Application(routes, **settings)
+        ssl_config = config.ssl
+        if ssl_config:
+            ssl_context = webserver.tls.SSLContext(
+                ssl_config.cert,
+                ssl_config.key,
+                ssl_config.ca_cert
+            )
+            server.listen(config.port, config.host, ssl_options=ssl_context.server_auth)
+        else:
+            server.listen(config.port, config.host)
+        log.info("Running '{service}' @ port {host}:{port}".format(
+            service=service_name,
+            host=config.host,
+            port=config.port
+        ))
+
+    def run_back_channel(self):
+        routes = [
+            self.create_route_for_unix_account_authorization_backchannel()
+        ]
+        self.create_service_for_backchannel(routes)
+
+    def create_service_for_backchannel(self, routes: List[tornado.routing.Rule]):
+        service_name = "backchannel"
+        config = self._config.webserver.service(service_name)
+        server = tornado.web.Application(routes)
+        ssl_config = config.ssl
+        if ssl_config:
+            ssl_context = webserver.tls.SSLContext(
+                ssl_config.cert,
+                ssl_config.key,
+                ssl_config.ca_cert
+            )
+            server.listen(config.port, config.host, ssl_options=ssl_context.client_auth)
+        else:
+            server.listen(config.port, config.host)
+        log.info("Running '{service}' @ port {host}:{port}".format(
+            service=service_name,
+            host=config.host,
+            port=config.port
+        ))
+
+    def create_routes_for_openid_google(self, provider_name: str) -> List[tornado.routing.Rule]:
+        """ Use Google as OpenID identity provider """
+        routes = webserver.route.user_account_openid.create_routes(
+            self._storage.user_accounts,
+            self._config.openid_provider.provider(provider_name),
+            self._config.webserver.external_url,
+            GoogleTokenFromCodeExchangeBuilder(TornadoAsyncHttpClient()),
+            GoogleOpenIDEndpointsBuilder(),
+            self._create_openid_routes_url(provider_name)
+        )
+        return routes
+
+    def create_routes_for_openid_keycloak(self, provider_name: str) -> List[tornado.routing.Rule]:
+        """ Use Keycloak as OpenID identity provider """
+        routes = webserver.route.user_account_openid.create_routes(
+            self._storage.user_accounts,
+            self._config.openid_provider.provider(provider_name),
+            self._config.webserver.external_url,
+            KeycloakTokenFromCodeExchangeBuilder(TornadoAsyncHttpClient()),
+            KeycloakOpenIDEndpointsBuilder(),
+            self._create_openid_routes_url(provider_name)
+        )
+        return routes
+
+    @staticmethod
+    def _create_openid_routes_url(provider_name: str):
+        routes_url = webserver.route.user_account_openid.RoutesUrl(
+            Routes.OPENID_LOGIN_FMT.format(provider=provider_name),
+            Routes.OPENID_LOGOUT_FMT.format(provider=provider_name),
+            Routes.OPENID_REGISTER_FMT.format(provider=provider_name),
+        )
+        return routes_url
+
+    def create_routes_for_frontend(self, openid_providers_name: list) -> List[tornado.routing.Rule]:
+        routes_url = webserver.route.frontend_mockup.RoutesUrl(
+            Routes.FRONTEND_MAIN,
+            Routes.FRONTEND_LOGIN,
+            Routes.FRONTEND_LOGOUT,
+            Routes.FRONTEND_AUTH_REQUESTS
+        )
+        routes = webserver.route.frontend_mockup.create_routes(
+            routes_url,
+            dict([(provider_name, self._create_openid_routes_url(provider_name)) for provider_name in openid_providers_name])
+        )
+        return routes
+
+    def create_route_for_user_registration(self) -> tornado.routing.Rule:
+        route = webserver.route.user_account_activation.create_route(
+            self._storage.user_account_activations,
+            Routes.USER_REGISTRATION
+        )
+        return route
+
+    def create_routes_for_administration(self, link_builder: UserAccountActivationLinkBuilder) -> List[tornado.routing.Rule]:
+        """ Administration for 'user_account', 'host', 'unix_account' """
+        admin_routes = webserver.route.admin.RoutesUrl(
+            Routes.ADMIN_HOSTS,
+            Routes.ADMIN_UNIX_ACCOUNTS,
+            Routes.ADMIN_USER_ACCOUNTS
+        )
+        account_link_activation = UserAccountActivationWithLink(
+            self._storage.user_account_activations,
+            link_builder
+        )
+        routes = webserver.route.admin.create_routes(
+            admin_routes,
+            self._storage,
+            account_link_activation
+        )
+        return routes
+
+    def create_route_for_unix_account_authorization_ws(self) -> tornado.routing.Rule:
+        route = webserver.route.unix_account_authorization.create_route_websocket(
+            Routes.UNIX_ACCOUNT_AUTH_WS,
+            self._msg_bus,
+            WebsocketMessageProtocol()
+        )
+        return route
+
+    def create_route_for_unix_account_authorization_backchannel(self) -> tornado.routing.Rule:
+        route = webserver.route.unix_account_authorization.create_route_backchannel(
+            Routes.UNIX_ACCOUNT_AUTH_BACKCHANNEL,
+            self._msg_bus,
+            self._storage
+        )
+        return route
+
+
+if __name__ == "__main__":
+    options.parse_command_line()
+
+    message_bus = InMemoryMessageBus()
+    configuration = Configuration(options.config)
+    storage = webserver.storage.create_storage(configuration.storage)
+
+    application = Application(storage, configuration, message_bus)
+    if options.bootstrap:
+        application.bootstrap()
+    application.run()
+
+    try:
+        tornado.ioloop.IOLoop.current().start()
+    except KeyboardInterrupt:
+        print("Goodbye!")
