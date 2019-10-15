@@ -9,8 +9,11 @@ Hello {{ current_user }}!
 
 <a href="/login">Login/logout</a>
 
-<p>Unix account requests: </p>
-<a href="/unix_accounts/auth_requests">Auth requests</a>
+{% if current_user.id %}
+<p><a href="/unix_accounts/auth_requests">Authorization requests</a></p>
+{% end %}
+
+<p>See more about webauth @ <a href="https://github.com/1nfiniteloop/webauth">GitHub</a>.</p>
 
 </body>
 </html>
