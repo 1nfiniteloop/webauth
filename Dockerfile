@@ -17,12 +17,11 @@ RUN mkdir -p \
 
 VOLUME /mnt/webauth
 
-WORKDIR /opt/webauth
-ADD requirements.txt .
-RUN pip3 install -r requirements.txt
+ADD . /usr/lib/python3.7/site-packages/webauth
+WORKDIR /usr/lib/python3.7/site-packages/webauth
 
-ADD . /opt/webauth
-RUN python3 -m unittest discover -s . -p "*_test.py" &> /dev/null && echo "All unittests OK!"
+RUN pip3 install -r requirements.txt \
+    && python3 -m unittest discover -s . -p "*_test.py" &> /dev/null && echo "All unittests OK!"
 
 USER webauth
 ENTRYPOINT ["./webauth"]
