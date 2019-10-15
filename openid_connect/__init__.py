@@ -17,7 +17,7 @@ from .token_request import (
 )
 from .jwt import (
     JwtDecoder,
-    JWKPublicKey,
+    JWKPublicKeyCache,
     JwtDecodeFailed
 )
 
@@ -34,6 +34,6 @@ __all__ = [
     "TokenFromCodeExchangeBuilder",
     "TokenRequestFailed",
     "JwtDecoder",
-    "JWKPublicKey",
+    "JWKPublicKeyCache",
     "JwtDecodeFailed"
 ]

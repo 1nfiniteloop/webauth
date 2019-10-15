@@ -25,7 +25,7 @@ from openid_connect import (
     TokenFromCodeExchanger,
     TokenFromCodeExchangeBuilder,
     JwtDecoder,
-    JWKPublicKey
+    JWKPublicKeyCache
 )
 from request_handler import (
     OAuth2Authorization,
@@ -86,8 +86,7 @@ def create_routes(
         openid_endpoints_builder.new(well_known),
         OpenIDClientConfiguration(openid_provider_cfg.client_id, openid_provider_cfg.client_secret)
     )
-    log.debug("Fetching Public key(s) from '{provider}'".format(provider=provider_name))
-    jwk_pubkey = _get_jwk_public_keys(openid_config.endpoints.jwks_endpoint)
+    jwk_pubkey = _create_jwk_public_keys_cache(openid_config.endpoints.jwks_endpoint)
     builder = OpenIDRoutesBuilder(
         external_url,
         AuthenticatedUserSerializer(),
@@ -104,8 +103,13 @@ def create_routes(
     return routes
 
 
-def _get_jwk_public_keys(jwks_endpoint: str) -> JWKPublicKey:
-    return JWKPublicKey(_http_get_json(jwks_endpoint))
+def _create_jwk_public_keys_cache(jwks_endpoint: str) -> JWKPublicKeyCache:
+    return JWKPublicKeyCache(jwk_pubkey_cb=lambda: _fetch_jwk_public_keys_cb(jwks_endpoint))
+
+
+def _fetch_jwk_public_keys_cb(jwks_endpoint: str):
+    log.debug("Fetching public key(s) from well-known url: {url}".format(url=jwks_endpoint))
+    return _http_get_json(jwks_endpoint)
 
 
 def _http_get_json(url: str):
@@ -123,7 +127,7 @@ class OpenIDRoutesBuilder:
             user_serializer: UserSerializer,
             openid_config: OpenIDConfiguration,
             user_storage: UserAccountStorage,
-            jwk_pubkey: JWKPublicKey,
+            jwk_pubkey: JWKPublicKeyCache,
             token_request_builder: TokenFromCodeExchangeBuilder
     ):
         url = urllib.parse.urlparse(external_url)
