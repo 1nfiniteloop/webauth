@@ -5,13 +5,14 @@ from typing import (
 
 import tornado.routing
 
-from request_handler import (
+from user_serializer import AuthenticatedUserSerializer
+
+from ..request_handler import (
     FirstPageFrontend,
     OpenIDLoginFrontend,
     UnixAccountAuthorizationRequestsFrontend,
     UserAccountLogoutFrontend
 )
-from user_serializer import AuthenticatedUserSerializer
 
 
 class RoutesUrl:

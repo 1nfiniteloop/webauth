@@ -7,12 +7,13 @@ from unix_account_authorization import (
     UnixAccountAuthorizationRequest,
     DefaultAuthorizationRequestBuilder
 )
-from request_handler import (
+from user_serializer import AuthenticatedUserSerializer
+
+from ..request_handler import (
     UnixAccountAuthorizationWebsocketArguments,
     UnixAccountAuthorizationWebsocket,
     UnixAccountAuthorization,
 )
-from user_serializer import AuthenticatedUserSerializer
 
 
 def create_route_websocket(url: str, msg_bus: MessageBus, protocol: MessageProtocol) -> tornado.routing.Rule:

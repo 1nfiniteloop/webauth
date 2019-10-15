@@ -27,13 +27,6 @@ from openid_connect import (
     JwtDecoder,
     JWKPublicKeyCache
 )
-from request_handler import (
-    OAuth2Authorization,
-    OAuth2AuthorizationArguments,
-    UserAccountLoginCallback,
-    UserAccountRegistrationCallback,
-    UserAccountLogoutOpenID
-)
 from user_serializer import (
     UserSerializer,
     AuthenticatedUserSerializer
@@ -43,6 +36,13 @@ from user_account_openid import (
     OpenIDUserAccountRegistration,
 )
 
+from ..request_handler import (
+    OAuth2Authorization,
+    OAuth2AuthorizationArguments,
+    UserAccountLoginCallback,
+    UserAccountRegistrationCallback,
+    UserAccountLogoutOpenID
+)
 from ..utils import url_path_join
 
 log = logging.getLogger(__name__)

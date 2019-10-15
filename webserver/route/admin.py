@@ -3,7 +3,10 @@ from typing import List
 import tornado.routing
 
 from application.storage import Storage
-from request_handler import (
+from user_account_activation import UserAccountActivationWithLink
+from user_serializer import AuthenticatedUserSerializer
+
+from ..request_handler import (
     HostAdministrationArguments,
     HostAdministration,
     UnixAccountAdministrationArguments,
@@ -11,8 +14,6 @@ from request_handler import (
     UserAccountAdministrationArguments,
     UserAccountAdministration,
 )
-from user_account_activation import UserAccountActivationWithLink
-from user_serializer import AuthenticatedUserSerializer
 
 
 class RoutesUrl:

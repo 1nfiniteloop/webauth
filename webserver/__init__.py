@@ -1,4 +1,5 @@
 from . import (
+    request_handler,
     route,
     storage,
     tls,
@@ -6,6 +7,7 @@ from . import (
 )
 
 __all__ = [
+    "request_handler",
     "route",
     "storage",
     "tls",

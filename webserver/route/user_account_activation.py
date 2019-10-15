@@ -1,12 +1,12 @@
 import tornado.routing
 
 from application.storage import UserAccountActivationStorage
-from request_handler import (
+from user_serializer import AuthenticatedUserSerializer
+
+from ..request_handler import (
     UserAccountActivation,
     UserAccountActivationArguments
 )
-from user_serializer import AuthenticatedUserSerializer
-
 from ..utils import url_path_join
 
 
