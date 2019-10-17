@@ -143,6 +143,26 @@ class TestUnixAccountAuthorizationRequest(unittest.TestCase):
         ]
         msg_bus.publish.assert_has_calls(expected_calls)
 
+    @async_test
+    async def test_publish_updates_on_responses(self):
+        user_id = "1234"
+        self._unix_account_storage.set_response_data_for("get_associated_users_for_unix_account", [user_id])
+        msg_bus = Mock(spec=MessageBus)
+        msg = AuthorizationResponseMessage("request-id", AuthorizationState.AUTHORIZED)
+        request_builder = AuthorizationRequestBuilderStub(
+            response_callback_actor=lambda response_cb: response_cb.on_response(msg)
+        )
+        req = UnixAccountAuthorizationRequest(
+            msg_bus,
+            self._unix_account_storage,
+            self._host_storage,
+            request_builder
+        )
+        resp = await req.authorize(valid_subject)
+        expected_calls = [
+            call(topic_user_updates(user_id), ANY),
+        ]
+        msg_bus.publish.assert_has_calls(expected_calls)
 
     @async_test
     async def test_response_authorized(self):

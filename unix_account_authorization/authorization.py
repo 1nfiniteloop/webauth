@@ -114,9 +114,9 @@ class Response:
 
 class AuthorizationResponseCallback(ResponseCallback):
 
-    def __init__(self, response: Response, on_expired_cb: Callable[[], Any]):
+    def __init__(self, response: Response, on_response_cb: Callable[[AuthorizationState], Any]):
         self._response = response
-        self._on_expired_cb = on_expired_cb
+        self._on_response_cb = on_response_cb
 
     def on_response(self, msg: AuthorizationResponseMessage):
         if msg.state == AuthorizationState.AUTHORIZED:
@@ -127,10 +127,11 @@ class AuthorizationResponseCallback(ResponseCallback):
             error_text = "Received unknown state: {name}".format(name=msg.state.name)
             log.error(error_text)
             self._response.set_state_error(error_text)
+        self._on_response_cb(msg.state)
 
     def on_expired(self):
         self._response.set_state_expired()
-        self._on_expired_cb()
+        self._on_response_cb(AuthorizationState.EXPIRED)
 
 
 class AuthorizationRequestBuilder(ABC):
@@ -194,7 +195,7 @@ class UnixAccountAuthorizationRequest(AuthorizationRequest):
                 host.name,
                 subject.service_name,
             )
-            response_cb = self._create_response_callback(users_id, message.id, response)
+            response_cb = self._create_on_response_callback(users_id, message.id, response)
             request = self._request_builder.new(
                 self._msg_bus,
                 users_id,
@@ -211,12 +212,14 @@ class UnixAccountAuthorizationRequest(AuthorizationRequest):
     def _get_users_id(self, unix_account_id: int) -> list:
         return self._unix_account_storage.get_associated_users_for_unix_account(unix_account_id)
 
-    def _create_response_callback(self, users_id: List[str], request_id: str, response: Response) -> ResponseCallback:
-        expired_cb = lambda: self._send_update_expired(users_id, request_id)
-        return AuthorizationResponseCallback(response, expired_cb)
+    def _create_on_response_callback(self, users_id: List[str], request_id: str, response: Response) -> ResponseCallback:
+        on_response_cb = lambda state: self._send_update(
+            users_id,
+            AuthorizationUpdateMessage(request_id, state)
+        )
+        return AuthorizationResponseCallback(response, on_response_cb)
 
-    def _send_update_expired(self, users_id: List[str], request_id: str):
-        msg = AuthorizationUpdateMessage(request_id, AuthorizationState.EXPIRED)
+    def _send_update(self, users_id: List[str], msg: AuthorizationUpdateMessage):
         for user_id in users_id:
             self._msg_bus.publish(topic_user_updates(user_id), msg)
 

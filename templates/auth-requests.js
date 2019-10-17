@@ -89,13 +89,6 @@ var message = {
         $("#messages").append(node);
     },
 
-    onAuthorizationUpdate: function(msg) {
-        if (msg.state == "EXPIRED")
-        {
-            this.onStateExpired(msg);
-        }
-    },
-
     onStateApproved: function(msg) {
         $("#message-" + msg.id).addClass("approved").fadeOut("slow", function() {
             $( this ).remove();
@@ -108,7 +101,7 @@ var message = {
         });
     },
 
-    onStateExpired: function(msg) {
+    onAuthorizationUpdate: function(msg) {
         $("#message-" + msg.id).addClass("expired").fadeOut("slow", function() {
             $( this ).remove();
         });
