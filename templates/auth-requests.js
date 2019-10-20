@@ -1,7 +1,42 @@
 
 $(document).ready(function() {
     websocket.init();
+    watchdog.init(websocket);
 });
+
+
+var watchdog = {
+    watchdog: null,
+    watchdogInterval: 1000,
+    reconnectInterval: 5000,
+    websocket: null,
+
+    init: function(websocket) {
+        this.websocket = websocket;
+        this.startWatchdog();
+    },
+
+    startWatchdog: function() {
+        if (this.watchdog == null)
+        {
+            this.watchdog = setInterval(this.watchWebsocket, this.watchdogInterval, this.websocket);
+        }
+    },
+
+    stopWatchdog: function() {
+        clearInterval(this.watchdog);
+        this.watchdog = null;
+    },
+
+    watchWebsocket: function(websocket)
+    {
+        if (websocket.socket.readyState == WebSocket.CLOSED)
+        {
+            console.log("Websocket closed, reconnecting...");
+            websocket.init();
+        }
+    },
+}
 
 
 var websocket = {
@@ -10,18 +45,21 @@ var websocket = {
     init: function() {
         if (location.protocol == "https:")
         {
-            var protocol = "wss://";
+            this.connect("wss://" + location.host + "/auth/websocket");
         }
         else
         {
-            var protocol = "ws://";
+            this.connect("ws://" + location.host + "/auth/websocket");
         }
-        var url = protocol + location.host + "/auth/websocket";
-        this.socket = new WebSocket(url);
-        this.socket.onopen = this.onOpen;
-        this.socket.onclose = this.onClose;
-        this.socket.onerror = this.onError;
-        this.socket.onmessage = this.onMessage;
+    },
+
+    connect: function(url) {
+        var socket = new WebSocket(url);
+        socket.onopen = this.onOpen;
+        socket.onclose = this.onClose;
+        socket.onerror = this.onError;
+        socket.onmessage = this.onMessage;
+        this.socket = socket
     },
 
     onOpen: function(event) {
