@@ -1,4 +1,9 @@
 import logging
+from typing import (
+    Callable,
+    Any
+)
+import uuid
 
 from tornado.websocket import WebSocketHandler
 import tornado.web
@@ -45,34 +50,24 @@ class UnixAccountAuthorizationWebsocketArguments:
         return self._msg_protocol
 
 
+class WebsocketSession(Observer):
+
+    """ Websocket session for notify users from message bus on websocket """
+
+    def __init__(self, send_cb: Callable[[Message], Any]):
+        self._websocket_send_cb = send_cb
+
+    def on_notify(self, msg: Message):
+        self._websocket_send_cb(msg)
+
+
 class UnixAccountAuthorizationWebsocket(WebSocketHandler):
 
     sessions = dict()
 
-    class Session(Observer):
-
-        """ A UserWebsocket client session for a user which can observe a topic and get notified """
-
-        def __init__(self, websocket: WebSocketHandler, msg_protocol: MessageProtocol):
-            self._websocket = websocket
-            self._msg_protocol = msg_protocol
-
-        def on_notify(self, msg: Message):
-            data = self._msg_protocol.encode(msg)
-            try:
-                self._try_forward_msg_to_websocket(data)
-            except tornado.websocket.WebSocketClosedError:
-                log.error("Failed to forward message from message bus: websocket is closed")
-
-        def _try_forward_msg_to_websocket(self, data: str):
-            if data:
-                self._websocket.write_message(data)
-                log.debug("Sending message on bus: {msg_data}".format(msg_data=data))
-            else:
-                log.error("Failed to encode received message from message bus")
-
     def initialize(self, args: UnixAccountAuthorizationWebsocketArguments):
         self._args = args
+        self._session_id = uuid.uuid4().hex
 
     # NOTE: reused from base.py
     def get_current_user(self) -> User:
@@ -93,27 +88,43 @@ class UnixAccountAuthorizationWebsocket(WebSocketHandler):
         return {}
 
     def open(self):
-        self._new_user_session()
-
-    def _new_user_session(self):
         current_user = self.current_user
-        user_id = current_user.id
-        user_session = self.Session(self, self._args.message_protocol)
-        self._args.message_bus.subscribe(user_session, topic_user_requests(user_id))
-        self._args.message_bus.subscribe(user_session, topic_user_updates(user_id))
-        self.sessions[user_id] = user_session
-        log.info("Client connected '{name}' id: {id}".format(name=current_user.name, id=current_user.id))
+        self._new_session(current_user.id)
+        log.info("New session id: {id} for user '{name}'".format(id=self._session_id, name=current_user.name))
+
+    def _new_session(self, user_id: str):
+        session = WebsocketSession(send_cb=self._send)
+        self._args.message_bus.subscribe(session, topic_user_requests(user_id))
+        self._args.message_bus.subscribe(session, topic_user_updates(user_id))
+        self.sessions[self._session_id] = session
 
     def on_close(self):
-        self._cleanup_user_session()
-
-    def _cleanup_user_session(self):
         current_user = self.current_user
-        user_id = current_user.id
-        user_session = self.sessions[user_id]
-        self._args.message_bus.unsubscribe_all(user_session)
-        del user_session
-        log.info("Client disconnected '{name}' id: {id}".format(name=current_user.name, id=current_user.id))
+        self._remove_session()
+        log.info("Closed session id: {id} for user '{name}'".format(id=self._session_id, name=current_user.name))
+
+    def _remove_session(self):
+        session_id = self._session_id
+        if session_id in self.sessions:
+            session = self.sessions[session_id]
+            self._args.message_bus.unsubscribe_all(session)
+            del self.sessions[session_id]
+        else:
+            log.error("Failed to remove session, no session found with id {id}".format(id=self._session_id))
+
+    def _send(self, msg: Message):
+        data = self._args.message_protocol.encode(msg)
+        if data:
+            self._try_send(data)
+            log.debug("Sending message on bus: {msg_data}".format(msg_data=data))
+        else:
+            log.error("Failed to encode received message from message bus")
+
+    def _try_send(self, data: str):
+        try:
+            self.write_message(data)
+        except tornado.websocket.WebSocketClosedError:
+            log.error("Failed to send message: websocket is closed")
 
     def on_message(self, data):
         try:
