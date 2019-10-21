@@ -90,7 +90,7 @@ class UnixAccountAuthorizationWebsocket(WebSocketHandler):
     def open(self):
         current_user = self.current_user
         self._new_session(current_user.id)
-        log.info("New session id: {id} for user '{name}'".format(id=self._session_id, name=current_user.name))
+        log.info("New session id: {id} for user {name}".format(id=self._session_id, name=current_user.name))
 
     def _new_session(self, user_id: str):
         session = WebsocketSession(send_cb=self._send)
@@ -101,7 +101,7 @@ class UnixAccountAuthorizationWebsocket(WebSocketHandler):
     def on_close(self):
         current_user = self.current_user
         self._remove_session()
-        log.info("Closed session id: {id} for user '{name}'".format(id=self._session_id, name=current_user.name))
+        log.info("Closed session id: {id} for user {name}".format(id=self._session_id, name=current_user.name))
 
     def _remove_session(self):
         session_id = self._session_id
@@ -116,7 +116,10 @@ class UnixAccountAuthorizationWebsocket(WebSocketHandler):
         data = self._args.message_protocol.encode(msg)
         if data:
             self._try_send(data)
-            log.debug("Sending message on bus: {msg_data}".format(msg_data=data))
+            log.debug("Sending message to {name} on session {id}".format(
+                name=self.current_user.name,
+                id=self._session_id
+            ))
         else:
             log.error("Failed to encode received message from message bus")
 
@@ -130,7 +133,10 @@ class UnixAccountAuthorizationWebsocket(WebSocketHandler):
         try:
             message = self._args.message_protocol.decode(data)
             self._forward_message(message)
-            log.debug("Forward received message on bus: {msg_data}".format(msg_data=data))
+            log.debug("Forward received message from {name} on session {id}".format(
+                name=self.current_user.name,
+                id=self._session_id
+            ))
         except DecodeFailed as err:
             self._reply_error(str(err))
 

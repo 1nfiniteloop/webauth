@@ -47,18 +47,18 @@ class AwaitableState:
         return self._state
 
     def set(self, state: State):
-        self._on_state_change(state)
+        self._set(state)
+        self._cond.notify()
 
-    def _on_state_change(self, state: State):
+    def _set(self, state: State):
         log.debug("State changed to: {state}".format(state=state.name))
         self._state = state
-        self._cond.notify()
 
     async def wait_for_state_change(self, expires: timedelta):
         """ Returns true if state has changed, or false on timeouts """
         state_changed = await self._cond.wait(timeout=expires)
         if not state_changed:
-            self._state = State.EXPIRED
+            self._set(State.EXPIRED)
         return state_changed
 
 
@@ -121,8 +121,13 @@ class Request:
         status = list()
         for topic in self._request_topics:
             status.append(self._msg_bus.publish(topic, msg))
-        log.debug("Publish request on {topic_count} topic(s)".format(topic_count=len(self._request_topics)))
-        return self._evaluate_send_status(status)
+        success = self._evaluate_send_status(status)
+        if not success:
+            log.debug("Send request failed for policy {policy} on {topic_count} topic(s)".format(
+                policy=self._policy.name,
+                topic_count=len(self._request_topics),
+            ))
+        return success
 
     def _evaluate_send_status(self, status: list) -> bool:
         if self._policy == SendPolicy.AT_LEAST_ONE:
