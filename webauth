@@ -142,7 +142,8 @@ class Application:
             cookie_secret=self._config.webserver.cookie_secret,
             xsrf_cookies=True,
             template_path=os.path.join(os.path.dirname(__file__), "templates"),
-            login_url=Routes.FRONTEND_LOGIN
+            login_url=Routes.FRONTEND_LOGIN,
+            websocket_ping_interval=30
         )
         server = tornado.web.Application(routes, **settings)
         ssl_config = config.ssl
