@@ -21,19 +21,22 @@ application:
     cookie_secret: "<PLACEHOLDER>"
     service:
       - name: "backchannel"
-        port: 8443
+        port: 8099
         host: "0.0.0.0"
         ssl:
+          location_dir: "/mnt/webauth/certs"
+          cert: "backchannel.cert.pem"
+          key: "backchannel.key.pem"
+          ca_cert: "backchannel.ca-chain.cert.pem"
+      - name: "frontend"
+        port: 8443
+        host: "0.0.0.0"
           location_dir: "/mnt/webauth/certs"
           cert: "server.cert.pem"
           key: "server.key.pem"
           ca_cert: "ca-chain.cert.pem"
-      - name: "frontend"
-        port: 8099
-        host: "0.0.0.0"
 
-
-  # These objects will be if they don't exist, when using "--bootstrap" cmdline flag.
+  # These objects will be created if they don't exist, when using "--bootstrap" cmdline flag.
   bootstrap:
     - type: "user"
       name: "Administrator"

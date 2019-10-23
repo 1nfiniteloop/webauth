@@ -95,6 +95,7 @@ few steps is needed to build and get the service ready, see below:
   container since some configuration is needed first.
   ```bash
   docker create \
+      -it \
       --name=webauth-server \
       --volume=webauth-server:/mnt/webauth \
       --publish 0.0.0.0:8099:8099 \
@@ -171,12 +172,12 @@ can reach the docker persistent volume with another container with:
 
 #### Frontend
 
-The frontend is available @ "https://${HOSTNAME}:8099/". You can login, logout
+The frontend is available @ "https://${HOSTNAME}:8443/". You can login, logout
 and authorize requests.
 
 #### Authorization endpoint
 
-This endpoint is dependent on client certificates and runs on port `8443`. It's
+This endpoint is dependent on client certificates and runs on port `8099`. It's
 important to configure the certificates since the host identity is taken from
 the client certifate's "Common Name". A host and unix-account must exist in the
 webauth server. Unix account authorization requests can be tested with curl:
@@ -189,7 +190,7 @@ curl \
     --cacert certs/ca-chain.cert.pem \
     --cert certs/client.cert.pem \
     --key certs/client.key.pem \
-    https://${HOSTNAME}:8443/api/unix_account/authorize
+    https://${HOSTNAME}:8099/api/unix_account/authorize
 ```
 
 #### Administration
@@ -215,7 +216,7 @@ link for user `curl-cli`.
        --location \
        --cookie \
        --cookie-jar ~/tmp/${HOSTNAME}.session \
-       "http://${HOSTNAME}:8099/user_account/bootstrap/98973ce45cce4e86b29cf4ae78b6af8e?next=%2F"
+       "http://${HOSTNAME}:8443/user_account/bootstrap/98973ce45cce4e86b29cf4ae78b6af8e?next=%2F"
    ```
 2. Endpoints for HTTP GET:
    ```
@@ -224,5 +225,5 @@ link for user `curl-cli`.
        --silent \
        --show-error \
        --cookie ~/tmp/${HOSTNAME}.session \
-       "http://${HOSTNAME}:8099/api/admin/{hosts,user_accounts,unix_accounts}"
+       "http://${HOSTNAME}:8443/api/admin/{hosts,user_accounts,unix_accounts}"
    ```
