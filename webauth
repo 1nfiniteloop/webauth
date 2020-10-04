@@ -13,7 +13,13 @@ from tornado.options import (
     options
 )
 
-from application import User
+from application import (
+    User,
+    AdministrationEndpoints,
+    BackChannelEndpoints,
+    OpenIDProviderEndpoint,
+    UserEndpoints
+)
 from application.messaging import (
     MessageBus
 )
@@ -55,6 +61,10 @@ define("config", default="config.yaml", help="Path to configuration file", type=
 define("bootstrap", default=False, help="Run the bootstrapping configuration", type=bool)
 
 
+class ConfigurationError(Exception):
+    pass
+
+
 def bootstrap_user_accounts(users: List[User], link_builder: UserAccountActivationLinkBuilder, user_account_activation: UserAccountActivationStorage):
     for user in users:
         nonce = user_account_activation.put_user(user)
@@ -76,17 +86,8 @@ def url_concat(base_url: str, args: dict):
 class Routes:
     FRONTEND_MAIN = "/"
     FRONTEND_LOGIN = "/login"
-    FRONTEND_LOGOUT = "/logout"      # NOTE: this is hardcoded in the mockup frontend!
+    FRONTEND_LOGOUT = "/api/logout"      # NOTE: this is hardcoded in the mockup frontend!
     FRONTEND_AUTH_REQUESTS = "/unix_accounts/auth_requests"    # NOTE: this is hardcoded in the mockup frontend!
-    OPENID_LOGIN_FMT = "/login/{provider}"
-    OPENID_LOGOUT_FMT = "/logout/{provider}"
-    OPENID_REGISTER_FMT = "/register/{provider}"
-    USER_REGISTRATION = "/user_account/bootstrap"
-    ADMIN_HOSTS = "/api/admin/hosts"
-    ADMIN_USER_ACCOUNTS = "/api/admin/user_accounts"
-    ADMIN_UNIX_ACCOUNTS = "/api/admin/unix_accounts"
-    UNIX_ACCOUNT_AUTH_WS = "/auth/websocket"    # NOTE: this is hard-coded in the mockup frontend!
-    UNIX_ACCOUNT_AUTH_BACKCHANNEL = "/api/unix_account/authorize"
 
 
 class Application:
@@ -120,20 +121,26 @@ class Application:
         user_registration_link_builder = self.get_default_user_registration_link_builder()
         routes.extend([
             *self.create_routes_for_frontend(openid_providers_list),
-            *self.create_routes_for_administration(user_registration_link_builder),
-            self.create_route_for_user_registration(),
-            self.create_route_for_unix_account_authorization_ws(),
+            *self.create_routes_for_administration(user_registration_link_builder, self._config.endpoints.admin),
+            self.create_route_for_user_registration(self._config.endpoints.user.user_registration),
+            self.create_route_for_unix_account_authorization_ws(self._config.endpoints.user.websocket),
         ])
         self.create_service_for_frontend(routes)
 
     def get_default_user_registration_link_builder(self) -> UserAccountActivationLinkBuilder:
-        user_registration_link = self._create_user_registration_link_template(
-            Routes.OPENID_REGISTER_FMT.format(provider="google")
-        )
-        return UserAccountActivationLinkBuilder(user_registration_link)
+        provider_name = "google"
+        openid_providers = self._config.endpoints.user.openid_providers
+        if provider_name in openid_providers:
+            user_registration_link = self._create_user_registration_link_template(
+                openid_providers[provider_name].register,
+                self._config.endpoints.user.user_registration
+            )
+            return UserAccountActivationLinkBuilder(user_registration_link)
+        else:
+            raise ConfigurationError("Required default openid_provider {name} not configured".format(name=provider_name))
 
-    def _create_user_registration_link_template(self, user_registration_url_path) -> str:
-        url = utils.url_path_join(Routes.USER_REGISTRATION, "/{nonce}", base_url=self._config.webserver.external_url)
+    def _create_user_registration_link_template(self, user_registration_url_path: str, endpoint: str) -> str:
+        url = utils.url_path_join(endpoint, "/{nonce}", base_url=self._config.webserver.external_url)
         return url_concat(url, {"next": user_registration_url_path})
 
     def create_service_for_frontend(self, routes: List[tornado.routing.Rule]):
@@ -165,8 +172,8 @@ class Application:
 
     def run_back_channel(self):
         routes = [
-            self.create_route_for_unix_account_authorization_backchannel()
-        ]
+            self.create_route_for_unix_account_authorization_backchannel(
+                self._config.endpoints.back_channel.authorization)]
         self.create_service_for_backchannel(routes)
 
     def create_service_for_backchannel(self, routes: List[tornado.routing.Rule]):
@@ -213,12 +220,12 @@ class Application:
         )
         return routes
 
-    @staticmethod
-    def _create_openid_routes_url(provider_name: str):
+    def _create_openid_routes_url(self, provider_name: str):
+        provider = self._config.endpoints.user.openid_providers
         routes_url = webserver.route.user_account_openid.RoutesUrl(
-            Routes.OPENID_LOGIN_FMT.format(provider=provider_name),
-            Routes.OPENID_LOGOUT_FMT.format(provider=provider_name),
-            Routes.OPENID_REGISTER_FMT.format(provider=provider_name),
+            provider[provider_name].login,
+            provider[provider_name].logout,
+            provider[provider_name].register
         )
         return routes_url
 
@@ -235,19 +242,19 @@ class Application:
         )
         return routes
 
-    def create_route_for_user_registration(self) -> tornado.routing.Rule:
+    def create_route_for_user_registration(self, endpoint: str) -> tornado.routing.Rule:
         route = webserver.route.user_account_activation.create_route(
             self._storage.user_account_activations,
-            Routes.USER_REGISTRATION
+            endpoint
         )
         return route
 
-    def create_routes_for_administration(self, link_builder: UserAccountActivationLinkBuilder) -> List[tornado.routing.Rule]:
+    def create_routes_for_administration(self, link_builder: UserAccountActivationLinkBuilder, endpoints: AdministrationEndpoints) -> List[tornado.routing.Rule]:
         """ Administration for 'user_account', 'host', 'unix_account' """
         admin_routes = webserver.route.admin.RoutesUrl(
-            Routes.ADMIN_HOSTS,
-            Routes.ADMIN_UNIX_ACCOUNTS,
-            Routes.ADMIN_USER_ACCOUNTS
+            endpoints.hosts,
+            endpoints.unix_accounts,
+            endpoints.user_accounts
         )
         account_link_activation = UserAccountActivationWithLink(
             self._storage.user_account_activations,
@@ -260,17 +267,17 @@ class Application:
         )
         return routes
 
-    def create_route_for_unix_account_authorization_ws(self) -> tornado.routing.Rule:
+    def create_route_for_unix_account_authorization_ws(self, endpoint: str) -> tornado.routing.Rule:
         route = webserver.route.unix_account_authorization.create_route_websocket(
-            Routes.UNIX_ACCOUNT_AUTH_WS,
+            endpoint,
             self._msg_bus,
             WebsocketMessageProtocol()
         )
         return route
 
-    def create_route_for_unix_account_authorization_backchannel(self) -> tornado.routing.Rule:
+    def create_route_for_unix_account_authorization_backchannel(self, endpoint: str) -> tornado.routing.Rule:
         route = webserver.route.unix_account_authorization.create_route_backchannel(
-            Routes.UNIX_ACCOUNT_AUTH_BACKCHANNEL,
+            endpoint,
             self._msg_bus,
             self._storage
         )
