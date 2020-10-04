@@ -1,3 +1,10 @@
+from .endpoints import (
+    AdministrationEndpoints,
+    BackChannelEndpoints,
+    OpenIDProviderEndpoint,
+    UserEndpoints,
+    UserEndpointsSerializer
+)
 from .user import (
     User,
     UserSerializer,
@@ -16,6 +23,11 @@ from .unix_account import (
 )
 
 __all__ = [
+    "AdministrationEndpoints",
+    "BackChannelEndpoints",
+    "OpenIDProviderEndpoint",
+    "UserEndpoints",
+    "UserEndpointsSerializer",
     "User",
     "UnprivilegedUser",
     "Credentials",

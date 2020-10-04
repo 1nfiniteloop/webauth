@@ -16,6 +16,24 @@ application:
       client_id: "<PLACEHOLDER>.apps.googleusercontent.com"
       client_secret: "<PLACEHOLDER>"
 
+  endpoints:
+    prefix: "/api"
+    admin:
+      hosts: "/admin/hosts"
+      user_accounts: "/admin/user_accounts"
+      unix_accounts: "/admin/unix_accounts"
+    user:
+      api_endpoints: "/endpoints"
+      user_registration: "/user/register"
+      websocket: "/stream"
+      logout: "/logout"
+      openid_provider:
+        login: "/login/{openid_provider}"
+        logout: "/logout/{openid_provider}"
+        register: "/register/{openid_provider}"
+    back_channel:
+      authorization: "/unix_account/authorize"
+
   webserver:
     external_url: "http://<PLACEHOLDER>:8099"
     cookie_secret: "<PLACEHOLDER>"

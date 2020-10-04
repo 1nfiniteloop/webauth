@@ -1,6 +1,17 @@
 import os.path
 from typing import (
-    List
+    List,
+    Dict
+)
+from application.endpoints import (
+    AdministrationEndpoints,
+    BackChannelEndpoints,
+    OpenIDProviderEndpoint,
+    UserEndpoints
+)
+from urllib.parse import (
+    urlsplit,
+    urlunsplit
 )
 import yaml
 import inspect
@@ -155,6 +166,64 @@ class BootstrapConfiguration:
         return list(cfg for cfg in self._bootstrap_types if cfg["type"] == type_name)
 
 
+class EndpointsConfiguration:
+
+    def __init__(self, endpoints: dict, openid_providers: List[dict], external_url: str):
+        self._prefix = endpoints["prefix"]
+        self._endpoints = endpoints
+        self._openid_providers = openid_providers
+        self._external_url = external_url
+
+    def _abs_path(self, path: str) -> str:
+        # TODO use "webserver.utils.url_path_join"
+        return self._prefix + path
+
+    @property
+    def admin(self):
+        config = self._endpoints[get_fcn_name()]
+        return AdministrationEndpoints(
+            self._abs_path(config["hosts"]),
+            self._abs_path(config["user_accounts"]),
+            self._abs_path(config["unix_accounts"]))
+
+    @property
+    def back_channel(self):
+        config = self._endpoints[get_fcn_name()]
+        return BackChannelEndpoints(
+            self._abs_path(config["authorization"]))
+
+    @property
+    def user(self):
+        config = self._endpoints[get_fcn_name()]
+        return UserEndpoints(
+            self._abs_path(config["api_endpoints"]),
+            self._abs_path(config["user_registration"]),
+            self._abs_path(config["websocket"]),
+            self._construct_websocket_url(config),
+            self._abs_path(config["logout"]),
+            self._get_openid_providers(config["openid_provider"]))
+
+    def _construct_websocket_url(self, config: dict) -> str:
+        ext_url = urlsplit(self._external_url)
+        if ext_url.scheme == "https":
+            scheme = "wss"
+        else:
+            scheme = "ws"
+        ws_url = urlunsplit((scheme, ext_url.netloc, self._abs_path(config["websocket"]), ext_url.query, ext_url.fragment))
+        return ws_url
+
+    def _get_openid_providers(self, config: dict) -> Dict[str, OpenIDProviderEndpoint]:
+        oid_provider = {}
+        for provider in self._openid_providers:
+            provider_name = provider["name"]
+            oid_provider[provider_name] = OpenIDProviderEndpoint(
+                provider_name,
+                self._abs_path(config["login"].format(openid_provider=provider_name)),
+                self._abs_path(config["logout"].format(openid_provider=provider_name)),
+                self._abs_path(config["register"].format(openid_provider=provider_name)))
+        return oid_provider
+
+
 class Configuration:
 
     """ This class is the main entrypoint for loading and navigating through the configuration file """
@@ -179,3 +248,10 @@ class Configuration:
     @property
     def bootstrap(self) -> BootstrapConfiguration:
         return BootstrapConfiguration(self._config[get_fcn_name()])
+
+    @property
+    def endpoints(self) -> EndpointsConfiguration:
+        return EndpointsConfiguration(
+            self._config[get_fcn_name()],
+            self._config.get("openid_provider", ()),
+            self.webserver.external_url)
