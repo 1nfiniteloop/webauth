@@ -7,7 +7,7 @@ from ..request_handler import (
     UserAccountActivation,
     UserAccountActivationArguments
 )
-from ..utils import url_path_join
+from utils import url_path_join
 
 
 def create_route(new_user_accounts: UserAccountActivationStorage, url_base_path: str) -> tornado.routing.Rule:

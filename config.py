@@ -3,6 +3,7 @@ from typing import (
     List,
     Dict
 )
+from utils import url_path_join
 from application.endpoints import (
     AdministrationEndpoints,
     BackChannelEndpoints,
@@ -175,8 +176,7 @@ class EndpointsConfiguration:
         self._external_url = external_url
 
     def _abs_path(self, path: str) -> str:
-        # TODO use "webserver.utils.url_path_join"
-        return self._prefix + path
+        return url_path_join(self._prefix, path)
 
     @property
     def admin(self):

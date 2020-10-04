@@ -43,7 +43,7 @@ from ..request_handler import (
     UserAccountRegistrationCallback,
     UserAccountLogoutOpenID
 )
-from ..utils import url_path_join
+from utils import url_path_join
 
 log = logging.getLogger(__name__)
 

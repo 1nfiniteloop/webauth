@@ -46,6 +46,7 @@ from bootstrap_storage import (
     bootstrap_storage,
 )
 import webserver
+import utils
 
 log = logging.getLogger(__name__)
 
@@ -132,7 +133,7 @@ class Application:
         return UserAccountActivationLinkBuilder(user_registration_link)
 
     def _create_user_registration_link_template(self, user_registration_url_path) -> str:
-        url = webserver.utils.url_path_join(Routes.USER_REGISTRATION, "/{nonce}", base_url=self._config.webserver.external_url)
+        url = utils.url_path_join(Routes.USER_REGISTRATION, "/{nonce}", base_url=self._config.webserver.external_url)
         return url_concat(url, {"next": user_registration_url_path})
 
     def create_service_for_frontend(self, routes: List[tornado.routing.Rule]):
