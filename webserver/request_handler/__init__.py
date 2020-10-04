@@ -1,3 +1,7 @@
+from .api_endpoints import (
+    ApiEndpoints,
+    ApiEndpointsArguments
+)
 from .frontend_mockup import (
     FirstPageFrontend,
     OpenIDLoginFrontend,
@@ -40,6 +44,8 @@ from .user_account_activation import (
 )
 
 __all__ = [
+    "ApiEndpoints",
+    "ApiEndpointsArguments",
     "FirstPageFrontend",
     "OpenIDLoginFrontend",
     "UnixAccountAuthorizationRequestsFrontend",
