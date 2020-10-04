@@ -9,6 +9,7 @@ from application import User
 
 
 AUTH_TOKEN_NAME = "auth_token"
+SESSION_TOKEN_NAME = "user_session"
 
 
 class AuthenticatedUserBase(tornado.web.RequestHandler, ABC):

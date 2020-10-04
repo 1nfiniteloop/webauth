@@ -23,7 +23,10 @@ from user_serializer import (
     UnprivilegedUser,
 )
 
-from .base import AUTH_TOKEN_NAME
+from .base import (
+    AUTH_TOKEN_NAME,
+    SESSION_TOKEN_NAME
+)
 from .user_account_openid import (
     OAuth2Authorization,
     OAuth2AuthorizationArguments,
@@ -138,13 +141,22 @@ class TestUserAccountLoginCallback(AsyncHTTPTestCase):
         response = self.fetch(url, method="GET")
         self.assertEqual(400, response.code)
 
-    def test_login_callback_set_cookie_on_success(self):
+    def test_login_callback_set_auth_token_cookie_on_success(self):
         self._user_auth.authenticate.return_value = valid_user
         url = tornado.httputil.url_concat(self.API_ENDPOINT_LOGIN_CB, {"code": "12345"})
         response = self.fetch(url, method="GET", follow_redirects=False)
         self.assertRegex(
             response.headers.get("Set-Cookie"),
-            "^{cookie_name}=\"?.+\"?".format(cookie_name=AUTH_TOKEN_NAME)
+            "{cookie_name}=\"?.+\"?".format(cookie_name=AUTH_TOKEN_NAME)
+        )
+
+    def test_login_callback_set_user_session_cookie_on_success(self):
+        self._user_auth.authenticate.return_value = valid_user
+        url = tornado.httputil.url_concat(self.API_ENDPOINT_LOGIN_CB, {"code": "12345"})
+        response = self.fetch(url, method="GET", follow_redirects=False)
+        self.assertRegex(
+            response.headers.get("Set-Cookie"),
+            "{cookie_name}=\"?.+\"?".format(cookie_name=SESSION_TOKEN_NAME)
         )
 
     def test_login_callback_redirect_on_success(self):
@@ -201,13 +213,19 @@ class TestUserAccountLogoutOpenID(AsyncHTTPTestCase):
         self.assertEqual(302, response.code)
         self.assertEqual(redirect_url.path, expected_redirect_url)
 
-    def test_logout_clear_cookie(self):
+    def test_logout_clear_auth_token_cookie(self):
         response = self.fetch(self.API_ENDPOINT_LOGOUT, method="GET", follow_redirects=False)
         self.assertRegex(
             response.headers.get("Set-Cookie"),
-            "^{cookie_name}=\"\"".format(cookie_name=AUTH_TOKEN_NAME)
+            "{cookie_name}=\"\";".format(cookie_name=AUTH_TOKEN_NAME)
         )
 
+    def test_logout_clear_user_session_cookie(self):
+        response = self.fetch(self.API_ENDPOINT_LOGOUT, method="GET", follow_redirects=False)
+        self.assertRegex(
+            response.headers.get("Set-Cookie"),
+            "{cookie_name}=\"\";".format(cookie_name=SESSION_TOKEN_NAME)
+        )
 
 class TestUserAccountRegistrationCallback(AsyncHTTPTestCase):
     API_BASE_URL = "/"

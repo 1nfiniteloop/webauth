@@ -4,6 +4,7 @@ from tornado.auth import (
 )
 import tornado.web
 import tornado.httputil
+import base64
 
 from application import (
     User,
@@ -13,6 +14,7 @@ from application import (
 )
 from .base import (
     AUTH_TOKEN_NAME,
+    SESSION_TOKEN_NAME,
     AuthenticatedUserBase
 )
 from user_serializer import (
@@ -96,8 +98,11 @@ class UserAccountLoginCallback(AuthenticatedUserBase, OAuth2Mixin):
     def get_authenticated_user(self, client_cookie: str) -> User:
         return self._user_serializer.unserialize(client_cookie)
 
-    def serialize_user(self, user: User) -> str:
+    def serialize_auth_token(self, user: User) -> str:
         return self._user_serializer.serialize(user)
+
+    def serialize_user_session(self, user: User) -> bytes:
+        return base64.b64encode(bytes(self.serialize_auth_token(user), encoding="utf8"))
 
     async def get(self):
         if Parameter.CODE in self.request.arguments:
@@ -130,7 +135,8 @@ class UserAccountLoginCallback(AuthenticatedUserBase, OAuth2Mixin):
     def _authenticate_user(self, user: User) -> bool:
         authenticated = False
         if user.privilege.value:  # != User.Privilege.NONE:
-            self.set_secure_cookie(AUTH_TOKEN_NAME, self.serialize_user(user))
+            self.set_secure_cookie(AUTH_TOKEN_NAME, self.serialize_auth_token(user))
+            self.set_cookie(SESSION_TOKEN_NAME, self.serialize_user_session(user))
             authenticated = True
         return authenticated
 
@@ -147,8 +153,11 @@ class UserAccountRegistrationCallback(AuthenticatedUserBase, OAuth2Mixin):
     def get_authenticated_user(self, client_cookie: str) -> User:
         return self._user_serializer.unserialize(client_cookie)
 
-    def serialize_user(self, user: User) -> str:
+    def serialize_auth_token(self, user: User) -> str:
         return self._user_serializer.serialize(user)
+
+    def serialize_user_session(self, user: User) -> bytes:
+        return base64.b64encode(bytes(self.serialize_auth_token(user), encoding="utf8"))
 
     async def get(self):
         if Parameter.CODE in self.request.arguments:
@@ -187,7 +196,8 @@ class UserAccountRegistrationCallback(AuthenticatedUserBase, OAuth2Mixin):
 
     def _register_new_user(self, openid_credentials: Credentials):
         user = self._user_registration.register_user(openid_credentials)
-        self.set_secure_cookie(AUTH_TOKEN_NAME, self.serialize_user(user))
+        self.set_secure_cookie(AUTH_TOKEN_NAME, self.serialize_auth_token(user))
+        self.set_cookie(SESSION_TOKEN_NAME, self.serialize_user_session(user))
         self.redirect(self._app_base_path)
 
 
@@ -205,4 +215,5 @@ class UserAccountLogoutOpenID(tornado.web.RequestHandler):
             dict(redirect_uri=self._callback_url)
         )
         self.clear_cookie(AUTH_TOKEN_NAME)
+        self.clear_cookie(SESSION_TOKEN_NAME)
         self.redirect(url)

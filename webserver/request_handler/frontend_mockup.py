@@ -9,6 +9,7 @@ from application import User
 from user_serializer import UserSerializer
 from .base import (
     AUTH_TOKEN_NAME,
+    SESSION_TOKEN_NAME,
     AuthenticatedUserBase,
     authenticated
 )
@@ -61,4 +62,5 @@ class UserAccountLogoutFrontend(tornado.web.RequestHandler):
 
     def get(self):
         self.clear_cookie(AUTH_TOKEN_NAME)
+        self.clear_cookie(SESSION_TOKEN_NAME)
         self.redirect(self._callback_url)
