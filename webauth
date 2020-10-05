@@ -29,6 +29,7 @@ from application.storage import (
 )
 from config import (
     Configuration,
+    ConfigurationError
 )
 from messaging import (
     InMemoryMessageBus
@@ -59,10 +60,6 @@ log = logging.getLogger(__name__)
 
 define("config", default="config.yaml", help="Path to configuration file", type=str)
 define("bootstrap", default=False, help="Run the bootstrapping configuration", type=bool)
-
-
-class ConfigurationError(Exception):
-    pass
 
 
 def bootstrap_user_accounts(users: List[User], link_builder: UserAccountActivationLinkBuilder, user_account_activation: UserAccountActivationStorage):
@@ -118,14 +115,30 @@ class Application:
         if self._config.openid_provider.has("keycloak"):
             routes.extend(self.create_routes_for_openid_keycloak("keycloak"))
             openid_providers_list.append("keycloak")
-        user_registration_link_builder = self.get_default_user_registration_link_builder()
-        routes.extend([
-            *self.create_routes_for_frontend(openid_providers_list),
-            *self.create_routes_for_administration(user_registration_link_builder, self._config.endpoints.admin),
-            self.create_route_for_user_registration(self._config.endpoints.user.user_registration),
-            self.create_route_for_unix_account_authorization_ws(self._config.endpoints.user.websocket),
-        ])
+        routes.extend(webserver.route.user.create_routes(
+            self._config.endpoints.user,
+            self._msg_bus,
+            WebsocketMessageProtocol(),
+            self._storage.user_account_activations))
+        routes.extend(self.create_routes_for_frontend(
+            openid_providers_list))
+        routes.extend(self.create_routes_for_administration(
+            self.get_default_user_registration_link_builder(),
+            self._config.endpoints.admin))
         self.create_service_for_frontend(routes)
+
+    def create_routes_for_administration(self, link_builder: UserAccountActivationLinkBuilder, endpoints: AdministrationEndpoints) -> List[tornado.routing.Rule]:
+        """ Administration for 'user_account', 'host', 'unix_account' """
+        account_link_activation = UserAccountActivationWithLink(
+            self._storage.user_account_activations,
+            link_builder
+        )
+        routes = webserver.route.admin.create_routes(
+            self._config.endpoints.admin,
+            self._storage,
+            account_link_activation
+        )
+        return routes
 
     def get_default_user_registration_link_builder(self) -> UserAccountActivationLinkBuilder:
         provider_name = "google"
@@ -172,8 +185,11 @@ class Application:
 
     def run_back_channel(self):
         routes = [
-            self.create_route_for_unix_account_authorization_backchannel(
-                self._config.endpoints.back_channel.authorization)]
+            webserver.route.back_channel.create_route(
+                self._config.endpoints.back_channel.authorization,
+                self._msg_bus,
+                self._storage)
+        ]
         self.create_service_for_backchannel(routes)
 
     def create_service_for_backchannel(self, routes: List[tornado.routing.Rule]):
@@ -198,7 +214,7 @@ class Application:
 
     def create_routes_for_openid_google(self, provider_name: str) -> List[tornado.routing.Rule]:
         """ Use Google as OpenID identity provider """
-        routes = webserver.route.user_account_openid.create_routes(
+        routes = webserver.route.openid_provider.create_routes(
             self._storage.user_accounts,
             self._config.openid_provider.provider(provider_name),
             self._config.webserver.external_url,
@@ -210,7 +226,7 @@ class Application:
 
     def create_routes_for_openid_keycloak(self, provider_name: str) -> List[tornado.routing.Rule]:
         """ Use Keycloak as OpenID identity provider """
-        routes = webserver.route.user_account_openid.create_routes(
+        routes = webserver.route.openid_provider.create_routes(
             self._storage.user_accounts,
             self._config.openid_provider.provider(provider_name),
             self._config.webserver.external_url,
@@ -222,7 +238,7 @@ class Application:
 
     def _create_openid_routes_url(self, provider_name: str):
         provider = self._config.endpoints.user.openid_providers
-        routes_url = webserver.route.user_account_openid.RoutesUrl(
+        routes_url = webserver.route.openid_provider.RoutesUrl(
             provider[provider_name].login,
             provider[provider_name].logout,
             provider[provider_name].register
@@ -242,46 +258,6 @@ class Application:
         )
         return routes
 
-    def create_route_for_user_registration(self, endpoint: str) -> tornado.routing.Rule:
-        route = webserver.route.user_account_activation.create_route(
-            self._storage.user_account_activations,
-            endpoint
-        )
-        return route
-
-    def create_routes_for_administration(self, link_builder: UserAccountActivationLinkBuilder, endpoints: AdministrationEndpoints) -> List[tornado.routing.Rule]:
-        """ Administration for 'user_account', 'host', 'unix_account' """
-        admin_routes = webserver.route.admin.RoutesUrl(
-            endpoints.hosts,
-            endpoints.unix_accounts,
-            endpoints.user_accounts
-        )
-        account_link_activation = UserAccountActivationWithLink(
-            self._storage.user_account_activations,
-            link_builder
-        )
-        routes = webserver.route.admin.create_routes(
-            admin_routes,
-            self._storage,
-            account_link_activation
-        )
-        return routes
-
-    def create_route_for_unix_account_authorization_ws(self, endpoint: str) -> tornado.routing.Rule:
-        route = webserver.route.unix_account_authorization.create_route_websocket(
-            endpoint,
-            self._msg_bus,
-            WebsocketMessageProtocol()
-        )
-        return route
-
-    def create_route_for_unix_account_authorization_backchannel(self, endpoint: str) -> tornado.routing.Rule:
-        route = webserver.route.unix_account_authorization.create_route_backchannel(
-            endpoint,
-            self._msg_bus,
-            self._storage
-        )
-        return route
 
 
 if __name__ == "__main__":

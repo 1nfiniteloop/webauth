@@ -1,15 +1,15 @@
 from . import (
     admin,
+    back_channel,
     frontend_mockup,
-    unix_account_authorization,
-    user_account_activation,
-    user_account_openid
+    user,
+    openid_provider
 )
 
 __all__ = [
     "admin",
+    "back_channel",
     "frontend_mockup",
-    "unix_account_authorization",
-    "user_account_activation",
-    "user_account_openid"
+    "user",
+    "openid_provider"
 ]
