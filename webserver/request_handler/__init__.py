@@ -2,12 +2,7 @@ from .api_endpoints import (
     ApiEndpoints,
     ApiEndpointsArguments
 )
-from .frontend_mockup import (
-    FirstPageFrontend,
-    OpenIDLoginFrontend,
-    UnixAccountAuthorizationRequestsFrontend,
-    UserAccountLogoutFrontend
-)
+from .frontend import Frontend
 from .host_admin import (
     HostAdministrationArguments,
     HostAdministration
@@ -27,6 +22,7 @@ from .user_account_admin import (
     UserAccountAdministrationArguments,
     UserAccountAdministration
 )
+from .user_account_logout import UserAccountLogout
 from .user_account_openid import (
     OAuth2Authorization,
     OAuth2AuthorizationArguments,
@@ -46,10 +42,7 @@ from .user_account_activation import (
 __all__ = [
     "ApiEndpoints",
     "ApiEndpointsArguments",
-    "FirstPageFrontend",
-    "OpenIDLoginFrontend",
-    "UnixAccountAuthorizationRequestsFrontend",
-    "UserAccountLogoutFrontend",
+    "Frontend",
     "HostAdministrationArguments",
     "HostAdministration",
     "UnixAccountAdministrationArguments",
@@ -59,6 +52,7 @@ __all__ = [
     "UserAccountAdministrationArguments",
     "UserAccountAdministration",
     "UnixAccountAuthorization",
+    "UserAccountLogout",
     "OAuth2Authorization",
     "OAuth2AuthorizationArguments",
     "UserAccountLoginCallback",

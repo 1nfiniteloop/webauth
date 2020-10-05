@@ -1,7 +1,7 @@
 from . import (
     admin,
     back_channel,
-    frontend_mockup,
+    frontend,
     user,
     openid_provider
 )
@@ -9,7 +9,7 @@ from . import (
 __all__ = [
     "admin",
     "back_channel",
-    "frontend_mockup",
+    "frontend",
     "user",
     "openid_provider"
 ]

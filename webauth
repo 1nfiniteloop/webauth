@@ -15,10 +15,7 @@ from tornado.options import (
 
 from application import (
     User,
-    AdministrationEndpoints,
-    BackChannelEndpoints,
-    OpenIDProviderEndpoint,
-    UserEndpoints
+    AdministrationEndpoints
 )
 from application.messaging import (
     MessageBus
@@ -80,11 +77,9 @@ def url_concat(base_url: str, args: dict):
     return url
 
 
-class Routes:
-    FRONTEND_MAIN = "/"
-    FRONTEND_LOGIN = "/login"
-    FRONTEND_LOGOUT = "/api/logout"      # NOTE: this is hardcoded in the mockup frontend!
-    FRONTEND_AUTH_REQUESTS = "/unix_accounts/auth_requests"    # NOTE: this is hardcoded in the mockup frontend!
+class Frontend:
+    location = "frontend/dist"
+    endpoint = "/"
 
 
 class Application:
@@ -120,8 +115,7 @@ class Application:
             self._msg_bus,
             WebsocketMessageProtocol(),
             self._storage.user_account_activations))
-        routes.extend(self.create_routes_for_frontend(
-            openid_providers_list))
+        routes.append(webserver.route.frontend.create_route(Frontend.endpoint))
         routes.extend(self.create_routes_for_administration(
             self.get_default_user_registration_link_builder(),
             self._config.endpoints.admin))
@@ -159,11 +153,12 @@ class Application:
     def create_service_for_frontend(self, routes: List[tornado.routing.Rule]):
         service_name = "frontend"
         config = self._config.webserver.service(service_name)
+        static_path = os.path.join(os.path.dirname(__file__), Frontend.location)
         settings = dict(
             cookie_secret=self._config.webserver.cookie_secret,
             xsrf_cookies=True,
-            template_path=os.path.join(os.path.dirname(__file__), "templates"),
-            login_url=Routes.FRONTEND_LOGIN,
+            static_path=static_path,
+            template_path=static_path,
             websocket_ping_interval=30
         )
         server = tornado.web.Application(routes, **settings)
@@ -244,20 +239,6 @@ class Application:
             provider[provider_name].register
         )
         return routes_url
-
-    def create_routes_for_frontend(self, openid_providers_name: list) -> List[tornado.routing.Rule]:
-        routes_url = webserver.route.frontend_mockup.RoutesUrl(
-            Routes.FRONTEND_MAIN,
-            Routes.FRONTEND_LOGIN,
-            Routes.FRONTEND_LOGOUT,
-            Routes.FRONTEND_AUTH_REQUESTS
-        )
-        routes = webserver.route.frontend_mockup.create_routes(
-            routes_url,
-            dict([(provider_name, self._create_openid_routes_url(provider_name)) for provider_name in openid_providers_name])
-        )
-        return routes
-
 
 
 if __name__ == "__main__":

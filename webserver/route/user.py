@@ -10,6 +10,7 @@ from endpoints_serializer import (
 from ..request_handler import (
     ApiEndpoints,
     ApiEndpointsArguments,
+    UserAccountLogout,
     UnixAccountAuthorizationWebsocketArguments,
     UnixAccountAuthorizationWebsocket,
     UserAccountActivation,
@@ -35,6 +36,9 @@ def create_routes(endpoints: UserEndpoints, msg_bus: MessageBus, protocol: Messa
         tornado.routing.Rule(
             tornado.routing.PathMatches(url_path_join(endpoints.user_registration, "(.*)")),
             UserAccountActivation,
-            dict(args=UserAccountActivationArguments(AuthenticatedUserSerializer(), new_user_accounts)))
+            dict(args=UserAccountActivationArguments(AuthenticatedUserSerializer(), new_user_accounts))),
+        tornado.routing.Rule(
+            tornado.routing.PathMatches(endpoints.logout),
+            UserAccountLogout)
     ]
     return routes
