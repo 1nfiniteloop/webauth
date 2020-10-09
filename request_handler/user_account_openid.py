@@ -8,6 +8,7 @@ import base64
 
 from application import (
     User,
+    UserSerializer,
     UserAccountAuthentication,
     UserAccountRegistration,
     Credentials
@@ -16,9 +17,6 @@ from .base import (
     AUTH_TOKEN_NAME,
     SESSION_TOKEN_NAME,
     AuthenticatedUserBase
-)
-from user_serializer import (
-    UserSerializer,
 )
 from openid_connect import (
     TokenFromCodeExchanger,

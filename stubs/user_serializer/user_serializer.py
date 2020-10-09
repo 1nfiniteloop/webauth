@@ -1,4 +1,4 @@
-from user_serializer import (
+from application import (
     UserSerializer,
     UnprivilegedUser
 )

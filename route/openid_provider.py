@@ -8,6 +8,7 @@ import urllib.parse
 import tornado.routing
 
 from application import (
+    UserSerializer,
     UserAccountAuthentication,
     UserAccountRegistration,
 )
@@ -27,8 +28,7 @@ from openid_connect import (
     JwtDecoder,
     JWKPublicKeyCache
 )
-from user_serializer import (
-    UserSerializer,
+from formatting import (
     AuthenticatedUserSerializer
 )
 from user_account_openid import (

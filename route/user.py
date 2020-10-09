@@ -3,8 +3,7 @@ import tornado.routing
 
 from application.messaging import MessageBus
 from application.storage import UserAccountActivationStorage
-from endpoints_serializer import (
-    JsonUserEndpointsSerializer,
+from application import (
     UserEndpoints,
 )
 from request_handler import (
@@ -19,7 +18,10 @@ from request_handler import (
 from unix_account_authorization import (
     MessageProtocol,
 )
-from user_serializer import AuthenticatedUserSerializer
+from formatting import (
+    AuthenticatedUserSerializer,
+    JsonUserEndpointsSerializer
+)
 from utils import url_path_join
 
 

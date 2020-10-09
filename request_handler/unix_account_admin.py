@@ -4,14 +4,13 @@ from .base import (
 )
 from application import (
     UnixAccount,
-    User
+    User,
+    UserSerializer
 )
 from formatting import JsonFormattedUnixAccount
 from storage import (
     UnixAccountStorage
 )
-
-from user_serializer import UserSerializer
 
 
 class Parameter(object):

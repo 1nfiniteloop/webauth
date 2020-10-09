@@ -8,6 +8,7 @@ import tornado.httputil
 
 from application import (
     User,
+    UnprivilegedUser,
     UserAccountAuthentication,
     UserAccountRegistration
 )
@@ -19,9 +20,6 @@ from openid_connect import (
 )
 from storage import UniqueConstraintFailed
 from stubs import UserSerializerStub
-from user_serializer import (
-    UnprivilegedUser,
-)
 
 from .base import (
     AUTH_TOKEN_NAME,

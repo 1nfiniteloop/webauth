@@ -4,6 +4,7 @@ from .base import (
 )
 from application import (
     User,
+    UserSerializer
 )
 from application.storage import (
     UserAccountStorage,
@@ -12,8 +13,7 @@ from user_account_activation import UserAccountActivationWithLink
 from storage import (
     ApplicationUserData,
 )
-from user_serializer import (
-    UserSerializer,
+from formatting import (
     JsonFormattedUser
 )
 

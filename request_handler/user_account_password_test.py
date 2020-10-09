@@ -8,7 +8,8 @@ import tornado.escape
 import tornado.httputil
 
 from application import (
-    User
+    User,
+    UnprivilegedUser
 )
 from .user_account_password import (
     Parameter,
@@ -17,9 +18,6 @@ from .user_account_password import (
 )
 from application import (
     UserAccountAuthentication
-)
-from user_serializer import (
-    UnprivilegedUser,
 )
 from .base import AUTH_TOKEN_NAME
 from stubs import UserSerializerStub

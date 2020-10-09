@@ -2,12 +2,10 @@ import tornado.web
 
 from application import (
     User,
+    UserSerializer,
     UserAccountAuthentication
 )
 from user_account_password import PasswordCredentials
-from user_serializer import (
-    UserSerializer,
-)
 
 from .base import (
     AUTH_TOKEN_NAME,

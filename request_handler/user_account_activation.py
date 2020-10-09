@@ -1,10 +1,8 @@
 from application import (
-    User
+    User,
+    UserSerializer
 )
 from application.storage import UserAccountActivationStorage
-from user_serializer import (
-    UserSerializer,
-)
 
 from .base import (
     AUTH_TOKEN_NAME,

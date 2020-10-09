@@ -4,7 +4,7 @@ from application import (
     User,
     UnprivilegedUser
 )
-from user_serializer import (
+from .user import (
     AuthenticatedUserSerializer,
     UserAttribute,
 )

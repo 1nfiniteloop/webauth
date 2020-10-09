@@ -9,7 +9,10 @@ from tornado.websocket import WebSocketHandler
 import tornado.web
 import tornado.escape
 
-from application import User
+from application import (
+    User,
+    UserSerializer
+)
 from application.messaging import (
     Observer,
     Message,
@@ -23,9 +26,6 @@ from unix_account_authorization import (
     DecodeFailed
 )
 from .base import AUTH_TOKEN_NAME
-from user_serializer import (
-    UserSerializer,
-)
 
 log = logging.getLogger(__name__)
 

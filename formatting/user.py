@@ -5,10 +5,22 @@ from application import (
     UserSerializer,
     UnprivilegedUser,
 )
-from formatting import (
-    JsonFormattedUser,
-    UserAttribute
-)
+
+
+class UserAttribute:
+    """String literals for User attributes used during serialize and unserialize """
+    USER_ID, USER_NAME, USER_PRIVILEGE = "id", "name", "privilege"
+
+
+class JsonFormattedUser(dict):
+
+    def __init__(self, user: User):
+        user_data = {
+            UserAttribute.USER_ID: user.id,
+            UserAttribute.USER_NAME: user.name,
+            UserAttribute.USER_PRIVILEGE: user.privilege.value
+        }
+        super().__init__(user_data)
 
 
 class AuthenticatedUserSerializer(UserSerializer):

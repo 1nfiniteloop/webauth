@@ -4,15 +4,13 @@ from .base import (
 )
 from application import (
     Host,
-    User
+    User,
+    UserSerializer
 )
 from formatting import JsonFormattedHost
 from storage import (
     HostStorage
 )
-
-from user_serializer import UserSerializer
-
 
 class Parameter(object):
     """ Valid parameters in http requests """
