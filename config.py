@@ -116,6 +116,9 @@ class WebserverConfiguration:
         except StopIteration:
             raise ConfigurationError("Webserver service '{name}' not found in config".format(name=name))
 
+    @property
+    def static_path(self) -> str:
+        return self._config[get_fcn_name()]
 
 class OpenIDProviderConfiguration:
 

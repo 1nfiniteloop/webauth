@@ -37,6 +37,7 @@ application:
   webserver:
     external_url: "http://<PLACEHOLDER>:8099"
     cookie_secret: "<PLACEHOLDER>"
+    static_path: "webauth-frontend"
     service:
       - name: "backchannel"
         port: 8099

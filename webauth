@@ -77,11 +77,6 @@ def url_concat(base_url: str, args: dict):
     return url
 
 
-class Frontend:
-    location = "frontend/dist"
-    endpoint = "/"
-
-
 class Application:
 
     def __init__(self, storage: Storage, config: Configuration, msg_bus: MessageBus):
@@ -115,7 +110,7 @@ class Application:
             self._msg_bus,
             WebsocketMessageProtocol(),
             self._storage.user_account_activations))
-        routes.append(webserver.route.frontend.create_route(Frontend.endpoint))
+        routes.append(webserver.route.frontend.create_route("/"))
         routes.extend(self.create_routes_for_administration(
             self.get_default_user_registration_link_builder(),
             self._config.endpoints.admin))
@@ -153,12 +148,11 @@ class Application:
     def create_service_for_frontend(self, routes: List[tornado.routing.Rule]):
         service_name = "frontend"
         config = self._config.webserver.service(service_name)
-        static_path = os.path.join(os.path.dirname(__file__), Frontend.location)
         settings = dict(
             cookie_secret=self._config.webserver.cookie_secret,
             xsrf_cookies=True,
-            static_path=static_path,
-            template_path=static_path,
+            static_path=self._config.webserver.static_path,
+            template_path=self._config.webserver.static_path,
             websocket_ping_interval=30
         )
         server = tornado.web.Application(routes, **settings)
@@ -247,7 +241,6 @@ if __name__ == "__main__":
     message_bus = InMemoryMessageBus()
     configuration = Configuration(options.config)
     storage = webserver.storage.create_storage(configuration.storage)
-
     application = Application(storage, configuration, message_bus)
     if options.bootstrap:
         application.bootstrap()
