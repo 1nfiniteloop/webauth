@@ -6,7 +6,7 @@ from application.storage import Storage
 from user_account_activation import UserAccountActivationWithLink
 from user_serializer import AuthenticatedUserSerializer
 
-from ..request_handler import (
+from request_handler import (
     HostAdministrationArguments,
     HostAdministration,
     UnixAccountAdministrationArguments,

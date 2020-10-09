@@ -7,7 +7,7 @@ from endpoints_serializer import (
     JsonUserEndpointsSerializer,
     UserEndpoints,
 )
-from ..request_handler import (
+from request_handler import (
     ApiEndpoints,
     ApiEndpointsArguments,
     UserAccountLogout,

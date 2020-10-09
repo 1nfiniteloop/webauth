@@ -6,7 +6,7 @@ from unix_account_authorization import (
     UnixAccountAuthorizationRequest,
     DefaultAuthorizationRequestBuilder
 )
-from ..request_handler import (
+from request_handler import (
     UnixAccountAuthorization,
 )
 

@@ -36,7 +36,7 @@ from user_account_openid import (
     OpenIDUserAccountRegistration,
 )
 
-from ..request_handler import (
+from request_handler import (
     OAuth2Authorization,
     OAuth2AuthorizationArguments,
     UserAccountLoginCallback,

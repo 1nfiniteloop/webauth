@@ -11,7 +11,7 @@ from storage import (
 )
 
 
-def create_storage(config: StorageConfiguration) -> Storage:
+def create(config: StorageConfiguration) -> Storage:
     storage = Storage(
         JsonFormattedHostStorage(FileStorage(config.hosts_filename)),
         JsonFormattedUserAccountStorage(FileStorage(config.user_accounts_filename)),

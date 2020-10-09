@@ -2,7 +2,6 @@
 
 import logging
 from typing import List
-import os.path
 
 import tornado.web
 import tornado.routing
@@ -31,6 +30,9 @@ from config import (
 from messaging import (
     InMemoryMessageBus
 )
+import route
+import storage_factory
+import tls
 from unix_account_authorization import WebsocketMessageProtocol
 from openid_connect import (
     GoogleOpenIDEndpointsBuilder,
@@ -49,7 +51,6 @@ from user_account_activation import (
 from bootstrap_storage import (
     bootstrap_storage,
 )
-import webserver
 import utils
 
 log = logging.getLogger(__name__)
@@ -105,12 +106,12 @@ class Application:
         if self._config.openid_provider.has("keycloak"):
             routes.extend(self.create_routes_for_openid_keycloak("keycloak"))
             openid_providers_list.append("keycloak")
-        routes.extend(webserver.route.user.create_routes(
+        routes.extend(route.user.create_routes(
             self._config.endpoints.user,
             self._msg_bus,
             WebsocketMessageProtocol(),
             self._storage.user_account_activations))
-        routes.append(webserver.route.frontend.create_route("/"))
+        routes.append(route.frontend.create_route("/"))
         routes.extend(self.create_routes_for_administration(
             self.get_default_user_registration_link_builder(),
             self._config.endpoints.admin))
@@ -122,7 +123,7 @@ class Application:
             self._storage.user_account_activations,
             link_builder
         )
-        routes = webserver.route.admin.create_routes(
+        routes = route.admin.create_routes(
             self._config.endpoints.admin,
             self._storage,
             account_link_activation
@@ -158,7 +159,7 @@ class Application:
         server = tornado.web.Application(routes, **settings)
         ssl_config = config.ssl
         if ssl_config:
-            ssl_context = webserver.tls.SSLContext(
+            ssl_context = tls.SSLContext(
                 ssl_config.cert,
                 ssl_config.key,
                 ssl_config.ca_cert
@@ -174,7 +175,7 @@ class Application:
 
     def run_back_channel(self):
         routes = [
-            webserver.route.back_channel.create_route(
+            route.back_channel.create_route(
                 self._config.endpoints.back_channel.authorization,
                 self._msg_bus,
                 self._storage)
@@ -187,7 +188,7 @@ class Application:
         server = tornado.web.Application(routes)
         ssl_config = config.ssl
         if ssl_config:
-            ssl_context = webserver.tls.SSLContext(
+            ssl_context = tls.SSLContext(
                 ssl_config.cert,
                 ssl_config.key,
                 ssl_config.ca_cert
@@ -203,7 +204,7 @@ class Application:
 
     def create_routes_for_openid_google(self, provider_name: str) -> List[tornado.routing.Rule]:
         """ Use Google as OpenID identity provider """
-        routes = webserver.route.openid_provider.create_routes(
+        routes = route.openid_provider.create_routes(
             self._storage.user_accounts,
             self._config.openid_provider.provider(provider_name),
             self._config.webserver.external_url,
@@ -215,7 +216,7 @@ class Application:
 
     def create_routes_for_openid_keycloak(self, provider_name: str) -> List[tornado.routing.Rule]:
         """ Use Keycloak as OpenID identity provider """
-        routes = webserver.route.openid_provider.create_routes(
+        routes = route.openid_provider.create_routes(
             self._storage.user_accounts,
             self._config.openid_provider.provider(provider_name),
             self._config.webserver.external_url,
@@ -227,7 +228,7 @@ class Application:
 
     def _create_openid_routes_url(self, provider_name: str):
         provider = self._config.endpoints.user.openid_providers
-        routes_url = webserver.route.openid_provider.RoutesUrl(
+        routes_url = route.openid_provider.RoutesUrl(
             provider[provider_name].login,
             provider[provider_name].logout,
             provider[provider_name].register
@@ -240,7 +241,7 @@ if __name__ == "__main__":
 
     message_bus = InMemoryMessageBus()
     configuration = Configuration(options.config)
-    storage = webserver.storage.create_storage(configuration.storage)
+    storage = storage_factory.create(configuration.storage)
     application = Application(storage, configuration, message_bus)
     if options.bootstrap:
         application.bootstrap()
