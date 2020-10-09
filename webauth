@@ -14,7 +14,6 @@ from tornado.options import (
 
 from application import (
     User,
-    AdministrationEndpoints
 )
 from application.messaging import (
     MessageBus
@@ -33,7 +32,6 @@ from messaging import (
 import route
 import storage_factory
 import tls
-from unix_account_authorization import WebsocketMessageProtocol
 from openid_connect import (
     GoogleOpenIDEndpointsBuilder,
     GoogleTokenFromCodeExchangeBuilder,
@@ -46,7 +44,6 @@ from http_client import (
 
 from user_account_activation import (
     UserAccountActivationLinkBuilder,
-    UserAccountActivationWithLink
 )
 from bootstrap_storage import (
     bootstrap_storage,
@@ -109,26 +106,13 @@ class Application:
         routes.extend(route.user.create_routes(
             self._config.endpoints.user,
             self._msg_bus,
-            WebsocketMessageProtocol(),
             self._storage.user_account_activations))
         routes.append(route.frontend.create_route("/"))
-        routes.extend(self.create_routes_for_administration(
-            self.get_default_user_registration_link_builder(),
-            self._config.endpoints.admin))
-        self.create_service_for_frontend(routes)
-
-    def create_routes_for_administration(self, link_builder: UserAccountActivationLinkBuilder, endpoints: AdministrationEndpoints) -> List[tornado.routing.Rule]:
-        """ Administration for 'user_account', 'host', 'unix_account' """
-        account_link_activation = UserAccountActivationWithLink(
-            self._storage.user_account_activations,
-            link_builder
-        )
-        routes = route.admin.create_routes(
+        routes.extend(route.admin.create_routes(
             self._config.endpoints.admin,
             self._storage,
-            account_link_activation
-        )
-        return routes
+            self.get_default_user_registration_link_builder()))
+        self.create_service_for_frontend(routes)
 
     def get_default_user_registration_link_builder(self) -> UserAccountActivationLinkBuilder:
         provider_name = "google"

@@ -16,7 +16,7 @@ from request_handler import (
     UserAccountActivationArguments,
 )
 from unix_account_authorization import (
-    MessageProtocol,
+    WebsocketMessageProtocol
 )
 from formatting import (
     AuthenticatedUserSerializer,
@@ -25,7 +25,7 @@ from formatting import (
 from utils import url_path_join
 
 
-def create_routes(endpoints: UserEndpoints, msg_bus: MessageBus, protocol: MessageProtocol, new_user_accounts: UserAccountActivationStorage) -> List[tornado.routing.Rule]:
+def create_routes(endpoints: UserEndpoints, msg_bus: MessageBus, new_user_accounts: UserAccountActivationStorage) -> List[tornado.routing.Rule]:
     routes = [
         tornado.routing.Rule(
             tornado.routing.PathMatches(endpoints.api_endpoints),
@@ -34,7 +34,7 @@ def create_routes(endpoints: UserEndpoints, msg_bus: MessageBus, protocol: Messa
         tornado.routing.Rule(
             tornado.routing.PathMatches(endpoints.websocket),
             UnixAccountAuthorizationWebsocket,
-            dict(args=UnixAccountAuthorizationWebsocketArguments(msg_bus, AuthenticatedUserSerializer(), protocol))),
+            dict(args=UnixAccountAuthorizationWebsocketArguments(msg_bus, AuthenticatedUserSerializer(), WebsocketMessageProtocol()))),
         tornado.routing.Rule(
             tornado.routing.PathMatches(url_path_join(endpoints.user_registration, "(.*)")),
             UserAccountActivation,
