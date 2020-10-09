@@ -2,37 +2,35 @@
 
 ## Background 
 
-Webauth is a project started as a step towards phasing out the need of password
-credentials in authentications. It's probably not uncommon that you must manage
-at least ~50 passwords for different accounts and systems. The web has
-standardized authentication flows and you can utilize 3rd party identity
-providers for authentication. Example OpenID and soon also Webauthn (not to
-confuse with this project name) using public/private keys instad of passwords
-(See more @ <https://webauthn.io/>). As a user, 3rd party identity providers
-decreases the need of having different password credentials for each
-webservice.
+This project demonstrates how to utilize identity providers on the web for
+authentication, on devices which is not itself a web service. Instead of
+asking a user for a password when logging into a computer it's
+possible to exploit that a user can authenticate with Google, Facebook,
+or other identity providers over the web. Using single sign-on reduces
+the amount of passwords to manage, for both users and system administrators.
 
-These authentication protocols is only available for webservices though.
+## Overview
 
-## Goal
+This project utilizes OpenID to delegate user authentications, instead of depend
+on local identity and credential databases. Below is a typical use case:
 
-This project utilizes the web authentication flows for devices which is not
-itself a web service, example your laptop or some other device*. The idea
-is that you login into the webauth server using a 3rd party identity provider,
-such as Google. You have authenticated yourself once and has an ongoing web
-session. When you need to login on your laptop the authentication is dispatched
-into the webauth server, instead of asking you for a password. You get a
-notification in your web session and can choose to approve or reject the
-request.
+1. A user logging into the webauth server using a 3rd party identity provider,
+   example Google and establishes a web session.
+2. When the user login on a computer the authentication is dispatched over
+   to the web session, instead of locally prompting for a password.
+3. The user get notified over the authenticated web session and can choose
+   to approve or reject the request.
 
 Using a web-service for authenticate other devices has the advantage of being
 agnostic. You can use any device with a web-browser available to authenticate. 
+Even if the authentication is dispatched over the web it's still required
+to physically be present near the computer where a user request to login, which
+makes this authentication flow resistant for phishing.
 
 *During the development i've preliminary targeted linux machines, see project
 <https://github.com/1nfiniteloop/pam-http>. This server could certainly work
 with any device with some other plugin on the client-side.
 
-## Overview
 
 Below is an overview of the authorization flow: 
 
@@ -68,22 +66,17 @@ Below is an overview of the authorization flow:
      └──────┘                               └───────┘                                                        └──────────┘
 ```
 
-The authentication request is a simple HTTP POST request to a service (port) on
-the webauth server. The HTTP request hangs until the user has responded, or
+The authentication request is a simple HTTP POST request over a separate
+back-channel. The server has different servers (ports) between the user API
+and the back-channel. The HTTP request hangs until the user has responded, or
 until a timeout occurs. An approved request is simply status code 200. Status
 codes different from 200 is either timeouts, errors or access denied. The
 endpoint uses ssl client certificate to mutually authenticate both server and
 client host. The "CommonName" in the client certificate is used as "host id"
 in webauth.
 
-The request is received over an authenticated websocket to the client.
-
-The webauth server has also a different service (port) for managing
-user-accounts, unix-accounts and hosts. The server has a simple frontend-mockup
-for evaluation purposes. You can login, logout and get authentication request
-on the websocket. The intention is to build a robust frontend (a separate, 
-later project). The API is still implemented and well-defined
-and could be used with example `curl`.
+The authorization request is dispatced over an authenticated websocket to the
+user.
 
 ### Build
 
@@ -201,8 +194,8 @@ Webauth has HTTP REST API's for managing:
 * Unix accounts
 * Hosts
 
-The mockup-frontend has no support for this API but you can example use `curl`
-to reach the endpoints. Since you need to be authenticated as administrator
+The frontend has currently not this API implemented, but example `curl` can be
+used to reach the endpoints. Since you need to be authenticated as administrator
 when using these endpoints the example configuration contains a user called
 "curl-cli". You need to first fetch the session cookie using the registration
 link for user `curl-cli`.
